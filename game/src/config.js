@@ -21,12 +21,14 @@ export const PLAYER = {
   invulnerableSeconds: 1.6,
 };
 
-export const GLIMMER = { radius: 11, basePoints: 10, magnetRadius: 110, comboWindow: 3.0 };
+export const GLIMMER = { radius: 11, basePoints: 100, magnetRadius: 110, comboWindow: 3.0 };
 
 // The Gloomwhale, the boss of the sixth descent: a huge shadow that hunts
 // the fish, charges with a telegraphed dash, and calls shades to it. Light
 // pulses drive it back; twelve hits send it fleeing into the dark.
 export const BOSS = {
+  name: 'The Gloomwhale',
+  kind: 'whale',
   radius: 62,
   maxHp: 12,
   cruiseSpeed: 52,
@@ -35,7 +37,24 @@ export const BOSS = {
   chargeCooldown: 4.5,
   shadeCallGap: 7,
   touchDamage: 1,
-  fleeScore: 500,
+  fleeScore: 5000,
+};
+
+// The Ink Mother, the mini-boss of the third descent: a long ink eel,
+// smaller and quicker than the whale, that calls darts instead of shades.
+// Six pulse hits send it fleeing — and leave a relic behind.
+export const BOSS_MINI = {
+  name: 'The Ink Mother',
+  kind: 'eel',
+  radius: 38,
+  maxHp: 6,
+  cruiseSpeed: 74,
+  chargeSpeed: 300,
+  chargeTelegraph: 0.8,
+  chargeCooldown: 3.5,
+  shadeCallGap: 6,
+  touchDamage: 1,
+  fleeScore: 2500,
 };
 
 export const GIFT_CHOICE_COUNT = 3;
@@ -73,6 +92,9 @@ export const PALETTE = {
   boss: '#2a0f2e',
   bossEye: '#ff2e63',
   bossBelly: '#7a2d8f',
+  eel: '#4a1a5e',
+  eelBelly: '#7a3d9f',
+  eelEye: '#c9a7ff',
   gift: '#ffd76a',
   panel: 'rgba(3, 14, 26, 0.78)',
   panelEdge: 'rgba(127, 227, 255, 0.35)',

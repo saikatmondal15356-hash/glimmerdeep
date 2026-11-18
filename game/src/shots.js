@@ -100,6 +100,72 @@ function settle(world, maxSeconds) {
 }
 
 /**
+ * Keep playing until the world reaches `targetWave` (or ends), at most
+ * `maxSeconds` of game time.
+ */
+function reachWave(world, targetWave, maxSeconds) {
+  const state = world.state;
+  for (let t = 0; t < maxSeconds; t += SAMPLE) {
+    if (state.wave >= targetWave) break;
+    const input = autopilot(state);
+    let events = world.step(SAMPLE, input.moveX, input.moveY, input.pulse, false);
+    events |= autoGift(world);
+    if (events & (EVENT_OVER | EVENT_WON)) break;
+  }
+}
+
+/**
+ * Fight the boss that is up: close in and pulse it, keep clear of its
+ * telegraphed charge, dodge the shades — and stop the moment it is down
+ * to `stopHp` with the banner gone, or the beacon is nearly lit.
+ */
+function fightBoss(world, seconds, stopHp) {
+  const state = world.state;
+  for (let t = 0; t < seconds; t += SAMPLE) {
+    const boss = state.boss;
+    const quota = DESCENTS[state.wave].quota;
+    if (state.collected >= quota - 2) break;
+    if (boss && boss.active && boss.hp <= stopHp && state.banner.timer <= 0) break;
+    let moveX = 0;
+    let moveY = 0;
+    let pulse = false;
+    const player = state.player;
+    if (boss && boss.active) {
+      const dx = boss.x - player.x;
+      const dy = boss.y - player.y;
+      const distance = Math.max(Math.hypot(dx, dy), 1);
+      if (boss.mode === 'telegraph' || boss.mode === 'charge') {
+        moveX -= (dx / distance) * 1.6;
+        moveY -= (dy / distance) * 1.6;
+      } else if (distance > 150) {
+        moveX += dx / distance;
+        moveY += dy / distance;
+      }
+      if (distance < 210 && state.energy >= PLAYER.pulseCost) pulse = true;
+    }
+    for (const shade of state.shades) {
+      if (!shade.active) continue;
+      const dx = player.x - shade.x;
+      const dy = player.y - shade.y;
+      const distance = Math.max(Math.hypot(dx, dy), 1);
+      if (distance < 150) {
+        const weight = (150 - distance) / 60;
+        moveX += (dx / distance) * weight;
+        moveY += (dy / distance) * weight;
+      }
+    }
+    const length = Math.hypot(moveX, moveY);
+    if (length > 1) {
+      moveX /= length;
+      moveY /= length;
+    }
+    const events = world.step(SAMPLE, moveX, moveY, pulse, false);
+    autoGift(world);
+    if (events & (EVENT_OVER | EVENT_WON)) break;
+  }
+}
+
+/**
  * Set `world` to the named scene (start, play, deep or win; any other name
  * is start) and return the screen to draw over it and the best score.
  */
@@ -107,7 +173,16 @@ export function stageShot(name, world) {
   const state = world.state;
   world.reset();
   if (name === 'play') {
-    playFor(world, 40);
+    // Reach the third descent, where the Ink Mother hunts, and fight her
+    // for a while; a careless run ends early and tries again from fresh.
+    for (let attempt = 0; attempt < 3 && state.wave < 2 && !state.over; attempt += 1) {
+      reachWave(world, 2, 300);
+      if (state.wave >= 2 && !state.over) {
+        playFor(world, 4);
+        fightBoss(world, 25, 3);
+      }
+      if (state.over && state.wave < 2 && attempt < 2) world.reset();
+    }
     settle(world, 6);
     return { screen: state.over ? SCREEN_OVER : SCREEN_PLAY, best: state.score };
   }
@@ -115,59 +190,10 @@ export function stageShot(name, world) {
     // Reach the sixth descent, where the Gloomwhale hunts, and fight it for
     // a while; a careless run ends early and tries again from a fresh world.
     for (let attempt = 0; attempt < 3 && state.wave < 5 && !state.over; attempt += 1) {
-      for (let t = 0; t < 300; t += SAMPLE) {
-        const input = autopilot(state);
-        let events = world.step(SAMPLE, input.moveX, input.moveY, input.pulse, false);
-        events |= autoGift(world);
-        if (events & (EVENT_OVER | EVENT_WON)) break;
-        if (state.wave >= 5) {
-          playFor(world, 9);
-          // Fight the whale without finishing the beacon: close in and
-          // pulse it, keep clear of its telegraphed charge, and stop the
-          // moment it is half spent with shades hunting and the banner gone.
-          for (let t = 0; t < 25; t += SAMPLE) {
-            const boss = state.boss;
-            if (state.collected >= 16) break;
-            if (boss && boss.active && boss.hp <= 6 && state.banner.timer <= 0) break;
-            let moveX = 0;
-            let moveY = 0;
-            let pulse = false;
-            const player = state.player;
-            if (boss && boss.active) {
-              const dx = boss.x - player.x;
-              const dy = boss.y - player.y;
-              const distance = Math.max(Math.hypot(dx, dy), 1);
-              if (boss.mode === 'telegraph' || boss.mode === 'charge') {
-                moveX -= (dx / distance) * 1.6;
-                moveY -= (dy / distance) * 1.6;
-              } else if (distance > 150) {
-                moveX += dx / distance;
-                moveY += dy / distance;
-              }
-              if (distance < 210 && state.energy >= PLAYER.pulseCost) pulse = true;
-            }
-            for (const shade of state.shades) {
-              if (!shade.active) continue;
-              const dx = player.x - shade.x;
-              const dy = player.y - shade.y;
-              const distance = Math.max(Math.hypot(dx, dy), 1);
-              if (distance < 150) {
-                const weight = (150 - distance) / 60;
-                moveX += (dx / distance) * weight;
-                moveY += (dy / distance) * weight;
-              }
-            }
-            const length = Math.hypot(moveX, moveY);
-            if (length > 1) {
-              moveX /= length;
-              moveY /= length;
-            }
-            const events = world.step(SAMPLE, moveX, moveY, pulse, false);
-            autoGift(world);
-            if (events & (EVENT_OVER | EVENT_WON)) break;
-          }
-          break;
-        }
+      reachWave(world, 5, 300);
+      if (state.wave >= 5 && !state.over) {
+        playFor(world, 9);
+        fightBoss(world, 25, 6);
       }
       if (state.over && state.wave < 5 && attempt < 2) world.reset();
     }

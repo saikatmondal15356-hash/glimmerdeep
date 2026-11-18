@@ -8,8 +8,9 @@ A lanternfish lights the abyss, one glimmer at a time. **Glimmerdeep** is a
 complete arcade game that runs in a desktop browser from static files, with
 no network request: swim Luma the lanternfish through six ever-deeper,
 ever-darker descents, gather the glimmers that light each beacon, choose an
-abyssal gift after every beacon, and face the Gloomwhale — the boss of the
-sixth descent — before the abyss is lit.
+abyssal gift after every beacon, drive off two bosses — the Ink Mother of
+the third descent and the Gloomwhale of the sixth — and win the relics they
+leave behind, before the abyss is lit.
 
 ## Run it
 
@@ -31,22 +32,30 @@ any static server and open `game/index.html`. No build step, no dependencies.
 18). Fill the beacon ring and the beacon lights: bonus points, a gift
 choice, and you dive deeper. Light all six beacons at 1,050 metres to win.
 
-**The Gloomwhale:** the boss of the sixth descent. It cruises at you,
-telegraphs a charge, dashes, and calls gloomshades to it. Light pulses cost
-it one hull each — twelve hits send it fleeing for +500 points.
+**The bosses:** the Ink Mother haunts the third descent — a long ink eel,
+quicker than the whale, that calls darts instead of shades. Six pulse hits
+send it fleeing for +2,500 points and the Ink Vial relic. The Gloomwhale
+rules the sixth descent: it cruises at you, telegraphs a charge, dashes,
+and calls gloomshades to it. Twelve hits send it fleeing for +5,000 points
+and the Whalebone Charm relic. Light pulses cost each boss one hull.
+
+**Relics:** one per boss, kept for the whole run and shown in the side
+panel. The Whalebone Charm makes pulses cost 5 less light; the Ink Vial
+pulls glimmers from 50% further away.
 
 **Abyssal gifts:** after each beacon (except the last) you choose one of
 three — Swift Fins, Wide Glow, Deep Lung, Thick Scales, Magnet Lure, Sharp
-Light, Lucky Current or Steady Heart. Gifts stack across the run and show in
-the side panel; the win screen lists the ones you held.
+Light, Lucky Current, Steady Heart, Bright Wake, Coral Guard, Deep Pockets
+or Echo Lure. Gifts stack across the run and show in the side panel; the
+win screen lists the ones you held.
 
 **Lose:** the gloomshades, darts and urchins hunt in the dark. Three hull
 hits and the dark takes Luma.
 
-**Score:** glimmers are worth 10 points times your combo multiplier, which
+**Score:** glimmers are worth 100 points times your combo multiplier, which
 grows as you gather without a break. Wave-clear bonuses, pulse takedowns,
-boss hits and power-ups — hearts, shields and Surge (double points) — add
-more.
+boss takedowns and power-ups — hearts, shields and Surge (double points) —
+add more.
 
 ## What is inside
 
@@ -55,9 +64,10 @@ more.
 - `game/src/random.js` — the seeded random source (so `?seed=N` replays a world)
 - `game/src/audio.js` — every sound synthesized live with WebAudio
 - `game/src/input.js` — keyboard and mouse, read once per frame
-- `game/src/world.js` — the simulation: fish, glimmers, shadows, waves, scoring, gift choices, the boss fight
-- `game/src/gifts.js` — the eight abyssal gifts: names, effects, and how they stack
-- `game/src/boss.js` — the Gloomwhale: cruise, telegraphed charge, shade calls, pulse hits
+- `game/src/world.js` — the simulation: fish, glimmers, shadows, waves, scoring, gift choices, the boss fights, relics
+- `game/src/gifts.js` — the twelve abyssal gifts: names, effects, and how they stack
+- `game/src/relics.js` — the two relics: which boss leaves each one behind
+- `game/src/boss.js` — the two bosses: cruise, telegraphed charge, shade calls, pulse hits
 - `game/src/render.js` — everything painted on the canvas: side panels, boss bar, gift cards, title, win and game-over screens
 - `game/src/shots.js` — the deterministic screenshot scenes (`?shot=start|play|deep|win`)
 - `game/src/main.js` — boot and the one game loop
@@ -66,10 +76,11 @@ more.
 
 ## Screenshots
 
-The cover (`1-play.jpg`) is Luma mid-descent, the descent and gift panels
-showing. `2-start.jpg` is the title screen, `3-deep.jpg` is the Gloomwhale
-boss fight in Descent 6 at 1,050 metres, and `4-win.jpg` is the lit abyss
-after the sixth beacon, with the run's gifts and statistics.
+The cover (`1-play.jpg`) is Luma mid-fight with the Ink Mother in Descent
+3 at 430 metres, the descent, gift, relic and hunting panels showing.
+`2-start.jpg` is the title screen, `3-deep.jpg` is the Gloomwhale boss
+fight in Descent 6 at 1,050 metres, and `4-win.jpg` is the lit abyss after
+the sixth beacon, with the run's gifts, relics and statistics.
 
 ---
 

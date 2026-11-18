@@ -1,5 +1,5 @@
 // Glimmerdeep — the abyssal gifts: one offered after each beacon lights.
-// One file, one job: it names the eight gifts, says what each does, and
+// One file, one job: it names the twelve gifts, says what each does, and
 // applies the one the player picks. The world owns when a choice opens.
 
 export const GIFTS = [
@@ -45,8 +45,8 @@ export const GIFTS = [
   {
     id: 'lucky-current',
     name: 'Lucky Current',
-    desc: 'Every glimmer is worth +5 points',
-    apply(mods) { mods.bonusPoints += 5; },
+    desc: 'Every glimmer is worth +50 points',
+    apply(mods) { mods.bonusPoints += 50; },
   },
   {
     id: 'steady-heart',
@@ -54,14 +54,38 @@ export const GIFTS = [
     desc: 'Heal 1 hull at every beacon',
     apply(mods) { mods.steadyHeart = true; },
   },
+  {
+    id: 'bright-wake',
+    name: 'Bright Wake',
+    desc: 'Pulses gather glimmers wider',
+    apply(mods) { mods.gatherRadius = 0.9; },
+  },
+  {
+    id: 'coral-guard',
+    name: 'Coral Guard',
+    desc: 'A shield at every descent',
+    apply(mods) { mods.coralGuard = true; },
+  },
+  {
+    id: 'deep-pockets',
+    name: 'Deep Pockets',
+    desc: '+1,000 points at every beacon',
+    apply(mods) { mods.deepPockets = true; },
+  },
+  {
+    id: 'echo-lure',
+    name: 'Echo Lure',
+    desc: 'Combo lasts 1.5s longer',
+    apply(mods) { mods.comboWindow += 1.5; },
+  },
 ];
 
 /** The gift that fills a choice when every gift is already held. */
 export const CACHE_GIFT = {
   id: 'deep-cache',
   name: 'Deep Cache',
-  desc: '+150 points, found in the dark',
-  apply(mods, state) { state.score += 150; },
+  desc: '+1,500 points, found in the dark',
+  apply(mods, state) { state.score += 1500; },
 };
 
 export function freshMods() {
@@ -74,6 +98,12 @@ export function freshMods() {
     sharp: false,
     bonusPoints: 0,
     steadyHeart: false,
+    gatherRadius: 0.6,
+    coralGuard: false,
+    deepPockets: false,
+    comboWindow: 0,
+    pulseCostCut: 0,
+    extraMagnet: 1,
   };
 }
 
