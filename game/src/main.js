@@ -9,9 +9,9 @@
 import { BEST_KEY, STEP } from './config.js';
 import { createRandom } from './random.js';
 import { createAudio } from './audio.js';
-import { createWorld, EVENT_FIZZLE, EVENT_HIT, EVENT_OVER, EVENT_PICKUP, EVENT_POWERUP, EVENT_PULSE, EVENT_WAVE_CLEAR, EVENT_WON } from './world.js';
-import { ACTION_CONFIRM, ACTION_MUTE, ACTION_PAUSE, ACTION_PULSE, ACTION_RESTART, createInput } from './input.js';
-import { createRenderer, SCREEN_OVER, SCREEN_PAUSED, SCREEN_PLAY, SCREEN_TITLE, SCREEN_WIN } from './render.js';
+import { createWorld, EVENT_BOSS_DOWN, EVENT_FIZZLE, EVENT_GIFT, EVENT_HIT, EVENT_OVER, EVENT_PICKUP, EVENT_POWERUP, EVENT_PULSE, EVENT_WAVE_CLEAR, EVENT_WON } from './world.js';
+import { ACTION_CONFIRM, ACTION_GIFT_1, ACTION_GIFT_2, ACTION_GIFT_3, ACTION_MUTE, ACTION_PAUSE, ACTION_PULSE, ACTION_RESTART, createInput } from './input.js';
+import { createRenderer, GIFT_CARDS, SCREEN_OVER, SCREEN_PAUSED, SCREEN_PLAY, SCREEN_TITLE, SCREEN_WIN } from './render.js';
 import { stageShot } from './shots.js';
 
 /** The longest frame the loop catches up on; a longer stall is dropped. */
@@ -92,7 +92,7 @@ function runGame() {
       const muted = audio.toggleMute();
       announce(muted ? 'Sound off.' : 'Sound on.');
     }
-    if (actions & ACTION_RESTART && (screen === SCREEN_PLAY || screen === SCREEN_OVER || screen === SCREEN_WIN)) {
+    if (actions & ACTION_RESTART && (screen === SCREEN_PLAY || screen === SCREEN_PAUSED || screen === SCREEN_OVER || screen === SCREEN_WIN)) {
       startGame();
       return;
     }
@@ -112,6 +112,8 @@ function runGame() {
     if (events & EVENT_PULSE) audio.pulse();
     if (events & EVENT_FIZZLE) audio.fizzle();
     if (events & EVENT_POWERUP) audio.powerup();
+    if (events & EVENT_GIFT) audio.powerup();
+    if (events & EVENT_BOSS_DOWN) audio.waveClear();
     if (events & EVENT_WAVE_CLEAR) audio.waveClear();
     if (events & EVENT_HIT) {
       audio.hit();
@@ -119,6 +121,27 @@ function runGame() {
     }
     if (events & EVENT_WON) finishRun(true);
     else if (events & EVENT_OVER) finishRun(false);
+  }
+
+  /** A gift choice is modal: keys 1/2/3 or a click on a card picks it. */
+  function handleGiftPick(actions, click) {
+    const choice = world.state.giftChoice;
+    if (!choice) return;
+    let index = -1;
+    if (actions & ACTION_GIFT_1) index = 0;
+    else if (actions & ACTION_GIFT_2) index = 1;
+    else if (actions & ACTION_GIFT_3) index = 2;
+    else if (click) {
+      GIFT_CARDS.forEach((card, i) => {
+        if (click.x >= card.x && click.x <= card.x + card.width
+          && click.y >= card.y && click.y <= card.y + card.height) index = i;
+      });
+    }
+    if (index >= 0 && index < choice.options.length) {
+      const events = world.chooseGift(index);
+      playEvents(events);
+      announce(`Gift taken. Descent ${world.state.wave + 1}.`);
+    }
   }
 
   let pulseUsedThisFrame = false;
@@ -142,8 +165,10 @@ function runGame() {
     // One read of the input per frame: the same press must not be eaten
     // twice, once by the screen handler and once by the world step.
     const actions = input.takeActions();
+    const click = input.takeClick();
     pulseUsedThisFrame = false;
-    handleActions(actions);
+    if (world.state.giftChoice) handleGiftPick(actions, click);
+    else handleActions(actions);
     if (screen === SCREEN_TITLE || screen === SCREEN_PLAY) {
       while (accumulator >= STEP && (screen === SCREEN_TITLE || screen === SCREEN_PLAY)) {
         step(actions);

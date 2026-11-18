@@ -23,6 +23,23 @@ export const PLAYER = {
 
 export const GLIMMER = { radius: 11, basePoints: 10, magnetRadius: 110, comboWindow: 3.0 };
 
+// The Gloomwhale, the boss of the sixth descent: a huge shadow that hunts
+// the fish, charges with a telegraphed dash, and calls shades to it. Light
+// pulses drive it back; twelve hits send it fleeing into the dark.
+export const BOSS = {
+  radius: 62,
+  maxHp: 12,
+  cruiseSpeed: 52,
+  chargeSpeed: 270,
+  chargeTelegraph: 0.9,
+  chargeCooldown: 4.5,
+  shadeCallGap: 7,
+  touchDamage: 1,
+  fleeScore: 500,
+};
+
+export const GIFT_CHOICE_COUNT = 3;
+
 // Each descent is one wave: how deep it is, how many glimmers light its
 // beacon, how many shadows hunt, and how fast and dark it gets.
 export const DESCENTS = [
@@ -53,4 +70,10 @@ export const PALETTE = {
   hud: '#dff6ff',
   hudDim: '#8fb8cc',
   banner: '#ffe9a3',
+  boss: '#2a0f2e',
+  bossEye: '#ff2e63',
+  bossBelly: '#7a2d8f',
+  gift: '#ffd76a',
+  panel: 'rgba(3, 14, 26, 0.78)',
+  panelEdge: 'rgba(127, 227, 255, 0.35)',
 };

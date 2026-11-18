@@ -2,8 +2,10 @@
 // the shadows that hunt it, and the six descents down to the lit abyss.
 // One file, one job: it owns every rule and no drawing at all.
 
-import { DESCENTS, FIELD, GLIMMER, PLAYER, STEP } from './config.js';
+import { BOSS, DESCENTS, FIELD, GIFT_CHOICE_COUNT, GLIMMER, PLAYER, STEP } from './config.js';
 import { range, rangeInt, pick } from './random.js';
+import { CACHE_GIFT, GIFTS, freshMods, giftById } from './gifts.js';
+import { createBoss, hitBoss, stepBoss } from './boss.js';
 
 export const EVENT_NONE = 0;
 export const EVENT_PICKUP = 1;
@@ -14,6 +16,8 @@ export const EVENT_WAVE_CLEAR = 16;
 export const EVENT_PULSE = 32;
 export const EVENT_FIZZLE = 64;
 export const EVENT_POWERUP = 128;
+export const EVENT_BOSS_DOWN = 256;
+export const EVENT_GIFT = 512;
 
 export const KIND_SHADE = 'shade';
 export const KIND_DART = 'dart';
@@ -38,6 +42,18 @@ export function createWorld(random) {
     over: false,
     clearing: false,
     clearTimer: 0,
+    // Abyssal gifts: the choice offered after a beacon lights, the gifts
+    // already held, and the modifiers they grant the fish.
+    giftChoice: null,
+    gifts: [],
+    mods: freshMods(),
+    // The Gloomwhale, boss of the sixth descent; null until it surfaces.
+    boss: null,
+    // Run statistics for the win screen.
+    elapsed: 0,
+    pulses: 0,
+    shadesDriven: 0,
+    bossHits: 0,
     banner: { text: '', sub: '', timer: 0 },
     player: { x: FIELD.width / 2, y: FIELD.height / 2, vx: 0, vy: 0, angle: 0, invuln: 0, pulseAnim: 0 },
     glimmers: [],
@@ -168,6 +184,14 @@ export function createWorld(random) {
     state.over = false;
     state.clearing = false;
     state.clearTimer = 0;
+    state.giftChoice = null;
+    state.gifts = [];
+    state.mods = freshMods();
+    state.boss = null;
+    state.elapsed = 0;
+    state.pulses = 0;
+    state.shadesDriven = 0;
+    state.bossHits = 0;
     state.player.x = FIELD.width / 2;
     state.player.y = FIELD.height / 2;
     state.player.vx = 0;
@@ -202,7 +226,7 @@ export function createWorld(random) {
     state.collected += 1;
     state.combo += 1;
     state.comboTimer = GLIMMER.comboWindow;
-    const points = GLIMMER.basePoints * multiplier();
+    const points = (GLIMMER.basePoints + state.mods.bonusPoints) * multiplier();
     state.score += points;
     burst(glimmer.x, glimmer.y, '#ffd76a', 10, 120);
     addFloat(glimmer.x, glimmer.y - 14, `+${points}`, '#ffe9a3');
@@ -212,7 +236,7 @@ export function createWorld(random) {
   function applyPowerup(powerup) {
     powerup.active = false;
     if (powerup.kind === 'heart') {
-      if (state.hull < PLAYER.maxHull) state.hull += 1;
+      if (state.hull < state.mods.maxHull) state.hull += 1;
       else state.score += 50;
       addFloat(state.player.x, state.player.y - 26, '+1 hull', '#ff6b81');
     } else if (powerup.kind === 'shield') {
@@ -251,16 +275,21 @@ export function createWorld(random) {
     if (state.energy < PLAYER.pulseCost) return EVENT_FIZZLE;
     state.energy -= PLAYER.pulseCost;
     state.player.pulseAnim = 0.4;
+    state.pulses += 1;
     const player = state.player;
+    const radius = PLAYER.pulseRadius * state.mods.pulseRadius;
+    let events = EVENT_PULSE;
     for (const shade of state.shades) {
       if (!shade.active) continue;
       const dx = shade.x - player.x;
       const dy = shade.y - player.y;
       const distance = Math.hypot(dx, dy);
-      if (distance < PLAYER.pulseRadius + shade.r) {
-        if (shade.kind === KIND_DART) {
+      if (distance < radius + shade.r) {
+        if (shade.kind === KIND_DART || state.mods.sharp) {
           shade.active = false;
-          state.score += 5;
+          state.score += shade.kind === KIND_DART ? 5 : 10;
+          state.shadesDriven += 1;
+          addFloat(shade.x, shade.y - 14, shade.kind === KIND_DART ? '+5' : '+10', '#c9a7ff');
           burst(shade.x, shade.y, '#b46bff', 10, 150);
         } else {
           const push = 320 / Math.max(distance, 20);
@@ -269,20 +298,61 @@ export function createWorld(random) {
         }
       }
     }
+    // A pulse on the Gloomwhale costs it one hull and knocks it back.
+    const boss = state.boss;
+    if (boss && boss.active) {
+      const distance = Math.hypot(boss.x - player.x, boss.y - player.y);
+      if (distance < radius + boss.r) {
+        const fled = hitBoss(boss, player);
+        if (fled) {
+          state.score += BOSS.fleeScore;
+          addFloat(boss.x, boss.y - 80, `+${BOSS.fleeScore} The Gloomwhale flees!`, '#ffd76a');
+          burst(boss.x, boss.y, '#ffd76a', 40, 260);
+          events |= EVENT_BOSS_DOWN;
+        } else {
+          state.bossHits += 1;
+        }
+      }
+    }
     for (const glimmer of state.glimmers) {
       if (!glimmer.active) continue;
       const distance = Math.hypot(glimmer.x - player.x, glimmer.y - player.y);
-      if (distance < PLAYER.pulseRadius * 0.6) collectGlimmer(glimmer);
+      if (distance < radius * 0.6) collectGlimmer(glimmer);
     }
-    return EVENT_PULSE;
+    return events;
+  }
+
+  /** Offer three gifts the fish does not hold yet; the Deep Cache fills a gap. */
+  function openGiftChoice() {
+    const held = new Set(state.gifts);
+    const unowned = GIFTS.filter((gift) => !held.has(gift.id));
+    const options = [];
+    while (options.length < GIFT_CHOICE_COUNT && unowned.length > 0) {
+      const index = Math.floor(random.next() * unowned.length);
+      options.push(unowned.splice(index, 1)[0].id);
+    }
+    while (options.length < GIFT_CHOICE_COUNT) options.push(CACHE_GIFT.id);
+    state.giftChoice = { options };
+  }
+
+  /**
+   * Take the gift at `index`, then dive to the next descent. Called from
+   * the game loop and from the screenshot autopilot, never from step().
+   */
+  function chooseGift(index) {
+    if (!state.giftChoice) return EVENT_NONE;
+    const id = state.giftChoice.options[Math.min(Math.max(index, 0), state.giftChoice.options.length - 1)];
+    const gift = giftById(id);
+    gift.apply(state.mods, state);
+    state.gifts.push(id);
+    state.giftChoice = null;
+    addFloat(state.player.x, state.player.y - 26, gift.name, '#ffd76a');
+    const events = advanceWave();
+    return events | EVENT_GIFT;
   }
 
   function advanceWave() {
     state.clearing = false;
-    if (state.wave >= DESCENTS.length - 1) {
-      state.won = true;
-      return EVENT_WON;
-    }
     state.wave += 1;
     state.collected = 0;
     state.shades = [];
@@ -292,10 +362,37 @@ export function createWorld(random) {
     for (let i = 0; i < table.shades; i += 1) spawnShade(KIND_SHADE);
     for (let i = 0; i < table.darts; i += 1) spawnShade(KIND_DART);
     for (let i = 0; i < table.urchins; i += 1) spawnShade(KIND_URCHIN);
+    if (state.mods.steadyHeart && state.hull < state.mods.maxHull) state.hull += 1;
     const bonus = 100 * (state.wave + 1);
     state.score += bonus;
-    showBanner(`Descent ${state.wave + 1} — ${table.depth}m`, `Gather ${table.quota} glimmers · +${bonus} bonus`);
+    if (state.wave >= DESCENTS.length - 1) {
+      state.boss = createBoss(random, state.player);
+      showBanner('Descent 6 — 1,050m', 'The Gloomwhale hunts here · Gather 18 glimmers');
+    } else {
+      showBanner(`Descent ${state.wave + 1} — ${table.depth}m`, `Gather ${table.quota} glimmers · +${bonus} bonus`);
+    }
     return EVENT_WAVE_CLEAR;
+  }
+
+  /** The Gloomwhale touches the fish: like a shade's hit, but the whale stays. */
+  function hurtByBoss() {
+    if (state.shieldTimer > 0) {
+      state.shieldTimer = 0;
+      burst(state.player.x, state.player.y, '#7fe3ff', 16, 180);
+      addFloat(state.player.x, state.player.y - 26, 'Shield held!', '#7fe3ff');
+      return EVENT_HIT;
+    }
+    state.hull -= 1;
+    state.player.invuln = PLAYER.invulnerableSeconds;
+    state.shake = 14;
+    state.combo = 0;
+    burst(state.player.x, state.player.y, '#ff5d7a', 18, 200);
+    if (state.hull <= 0) {
+      state.over = true;
+      burst(state.player.x, state.player.y, '#7fe3ff', 40, 260);
+      return EVENT_HIT | EVENT_OVER;
+    }
+    return EVENT_HIT;
   }
 
   /** Advance the world one fixed step. Returns a bitmask of events. */
@@ -314,7 +411,7 @@ export function createWorld(random) {
       state.comboTimer -= dt;
       if (state.comboTimer <= 0) state.combo = 0;
     }
-    state.energy = Math.min(PLAYER.maxEnergy, state.energy + PLAYER.pulseRegen * dt);
+    state.energy = Math.min(PLAYER.maxEnergy, state.energy + (PLAYER.pulseRegen + state.mods.regen) * dt);
 
     // Marine snow drifts down forever; distant glimmers twinkle in place.
     for (const twinkle of state.distant) twinkle.phase += dt * 1.4;
@@ -359,6 +456,10 @@ export function createWorld(random) {
 
     if (state.over || state.won) return events;
 
+    // A gift choice is modal: the world waits for the pick.
+    if (state.giftChoice) return events;
+    state.elapsed += dt;
+
     // Swim: thrust with exponential drag, so the fish glides to a stop.
     player.vx += moveX * PLAYER.thrust * dt;
     player.vy += moveY * PLAYER.thrust * dt;
@@ -366,9 +467,10 @@ export function createWorld(random) {
     player.vx *= damp;
     player.vy *= damp;
     const speed = Math.hypot(player.vx, player.vy);
-    if (speed > PLAYER.maxSpeed) {
-      player.vx = (player.vx / speed) * PLAYER.maxSpeed;
-      player.vy = (player.vy / speed) * PLAYER.maxSpeed;
+    const topSpeed = PLAYER.maxSpeed * state.mods.speed;
+    if (speed > topSpeed) {
+      player.vx = (player.vx / speed) * topSpeed;
+      player.vy = (player.vy / speed) * topSpeed;
     }
     player.x = Math.min(FIELD.width - 24, Math.max(24, player.x + player.vx * dt));
     // Stay below the HUD bar, so the lantern never hides under it.
@@ -384,8 +486,9 @@ export function createWorld(random) {
       const dx = player.x - glimmer.x;
       const dy = player.y - glimmer.y;
       const distance = Math.hypot(dx, dy);
-      if (distance < GLIMMER.magnetRadius && distance > 1) {
-        const pull = (1 - distance / GLIMMER.magnetRadius) * 260 * dt;
+      const magnetRadius = GLIMMER.magnetRadius * state.mods.magnet;
+      if (distance < magnetRadius && distance > 1) {
+        const pull = (1 - distance / magnetRadius) * 260 * dt;
         glimmer.x += (dx / distance) * pull;
         glimmer.y += (dy / distance) * pull;
       }
@@ -441,6 +544,30 @@ export function createWorld(random) {
       }
     }
 
+    // The Gloomwhale hunts in the sixth descent: cruise, telegraph, charge.
+    const boss = state.boss;
+    if (boss && boss.active) {
+      const bossEvent = stepBoss(boss, dt, player, random);
+      if (bossEvent === 'warn') {
+        addFloat(boss.x, boss.y - 84, 'The Gloomwhale charges!', '#ff2e63');
+      } else if (bossEvent === 'call') {
+        state.shades.push({
+          x: boss.x + range(random, -90, 90),
+          y: boss.y + range(random, -60, 60),
+          vx: 0, vy: 0, r: 15,
+          speed: descent().shadeSpeed,
+          wobble: range(random, 0.8, 2.2),
+          phase: random.next() * Math.PI * 2,
+          kind: KIND_SHADE,
+          active: true,
+        });
+      }
+      if (player.invuln <= 0 && Math.hypot(player.x - boss.x, player.y - boss.y) < PLAYER.radius + boss.r - 10) {
+        events |= hurtByBoss();
+        if (state.over) return events;
+      }
+    }
+
     // Power-ups drift in on a slow timer.
     powerupTimer -= dt;
     if (powerupTimer <= 0) {
@@ -466,12 +593,22 @@ export function createWorld(random) {
     }
     if (state.clearing) {
       state.clearTimer -= dt;
-      if (state.clearTimer <= 0) events |= advanceWave();
+      if (state.clearTimer <= 0) {
+        if (state.wave >= DESCENTS.length - 1) {
+          state.won = true;
+          state.clearing = false;
+          events |= EVENT_WON;
+        } else {
+          // The beacon's light offers a gift; the dive waits for the pick.
+          state.clearing = false;
+          openGiftChoice();
+        }
+      }
     }
 
     return events;
   }
 
   reset();
-  return { state, reset, step, descent, multiplier };
+  return { state, reset, step, descent, multiplier, chooseGift };
 }

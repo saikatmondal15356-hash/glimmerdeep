@@ -2,12 +2,20 @@
 // One file, one job: it reads the world and draws it, and owns no rules.
 
 import { DESCENTS, FIELD, PALETTE, PLAYER } from './config.js';
+import { giftById } from './gifts.js';
 
 export const SCREEN_TITLE = 'title';
 export const SCREEN_PLAY = 'play';
 export const SCREEN_PAUSED = 'paused';
 export const SCREEN_OVER = 'over';
 export const SCREEN_WIN = 'win';
+
+// The three gift cards on the choice screen, so a click can pick one.
+export const GIFT_CARDS = [
+  { x: 166, y: 280, width: 300, height: 170 },
+  { x: 490, y: 280, width: 300, height: 170 },
+  { x: 814, y: 280, width: 300, height: 170 },
+];
 
 export function createRenderer(canvas) {
   const ctx = canvas.getContext('2d');
@@ -358,7 +366,7 @@ export function createRenderer(canvas) {
     ctx.fillText('Light the beacon to dive deeper', FIELD.width / 2, 44);
     drawBeacon(state);
     // Hull hearts, top right, clear of the energy bar beside them.
-    for (let i = 0; i < PLAYER.maxHull; i += 1) {
+    for (let i = 0; i < state.mods.maxHull; i += 1) {
       const x = FIELD.width - 310 + i * 30;
       ctx.fillStyle = i < state.hull ? PALETTE.heart : 'rgba(255,107,129,0.25)';
       ctx.beginPath();
@@ -395,6 +403,202 @@ export function createRenderer(canvas) {
       ctx.textAlign = 'right';
       ctx.fillText('Muted (M)', FIELD.width - 18, 66);
     }
+    ctx.restore();
+  }
+
+  function drawSidePanels(state) {
+    // Left: the six descents, with the lit beacons and the win/lose rules.
+    ctx.save();
+    ctx.fillStyle = PALETTE.panel;
+    ctx.strokeStyle = PALETTE.panelEdge;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(12, 64, 208, 236, 12);
+    ctx.fill();
+    ctx.stroke();
+    ctx.textAlign = 'left';
+    ctx.fillStyle = PALETTE.hud;
+    ctx.font = '800 13px system-ui, sans-serif';
+    ctx.fillText('DESCENTS', 26, 88);
+    DESCENTS.forEach((descent, index) => {
+      const y = 112 + index * 24;
+      const lit = index < state.wave || (index === state.wave && state.collected >= descent.quota);
+      const current = index === state.wave;
+      ctx.fillStyle = lit ? '#ffd76a' : current ? '#7fe3ff' : 'rgba(223,246,255,0.4)';
+      ctx.beginPath();
+      ctx.arc(34, y - 4, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = current ? PALETTE.hud : PALETTE.hudDim;
+      ctx.font = current ? '700 13px system-ui, sans-serif' : '600 13px system-ui, sans-serif';
+      ctx.fillText(`${index + 1}  ${descent.depth}m — ${descent.quota} glimmers`, 46, y);
+    });
+    ctx.fillStyle = '#8fff9e';
+    ctx.font = '700 12px system-ui, sans-serif';
+    ctx.fillText('WIN  light all 6 beacons', 26, 268);
+    ctx.fillStyle = '#ff8fa3';
+    ctx.fillText('LOSE  3 hull hits', 26, 286);
+    ctx.restore();
+
+    // Right: the gifts held, the combo, and the shadows still hunting.
+    ctx.save();
+    ctx.fillStyle = PALETTE.panel;
+    ctx.strokeStyle = PALETTE.panelEdge;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(FIELD.width - 220, 64, 208, 236, 12);
+    ctx.fill();
+    ctx.stroke();
+    ctx.textAlign = 'left';
+    ctx.fillStyle = PALETTE.hud;
+    ctx.font = '800 13px system-ui, sans-serif';
+    ctx.fillText(`GIFTS  ${state.gifts.length}/8`, FIELD.width - 206, 88);
+    if (state.gifts.length === 0) {
+      ctx.fillStyle = PALETTE.hudDim;
+      ctx.font = '600 12px system-ui, sans-serif';
+      ctx.fillText('None yet — light a beacon', FIELD.width - 206, 112);
+      ctx.fillText('to be offered one.', FIELD.width - 206, 130);
+    } else {
+      state.gifts.forEach((id, index) => {
+        ctx.fillStyle = '#ffd76a';
+        ctx.font = '700 13px system-ui, sans-serif';
+        ctx.fillText(`✦ ${giftById(id).name}`, FIELD.width - 206, 112 + index * 22);
+      });
+    }
+    const comboMult = Math.min(1 + Math.floor(state.combo / 5), 4) * (state.surgeTimer > 0 ? 2 : 1);
+    ctx.fillStyle = comboMult > 1 ? '#ffe9a3' : PALETTE.hudDim;
+    ctx.font = '800 20px system-ui, sans-serif';
+    ctx.fillText(comboMult > 1 ? `COMBO x${comboMult}` : 'COMBO x1', FIELD.width - 206, 252);
+    ctx.fillStyle = PALETTE.hudDim;
+    ctx.font = '600 12px system-ui, sans-serif';
+    const hunting = state.shades.filter((shade) => shade.active).length;
+    ctx.fillText(`Shadows hunting: ${hunting}`, FIELD.width - 206, 276);
+    if (state.surgeTimer > 0) {
+      ctx.fillStyle = PALETTE.surge;
+      ctx.font = '700 13px system-ui, sans-serif';
+      ctx.fillText(`Surge x2 — ${Math.ceil(state.surgeTimer)}s`, FIELD.width - 206, 296);
+    }
+    ctx.restore();
+
+    // Bottom: every control, always visible.
+    ctx.save();
+    ctx.fillStyle = 'rgba(3, 12, 24, 0.55)';
+    ctx.fillRect(0, FIELD.height - 36, FIELD.width, 36);
+    ctx.fillStyle = PALETTE.hudDim;
+    ctx.font = '600 13px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('WASD / Arrows — swim      Space / Click — light pulse      1 / 2 / 3 — choose a gift      P — pause      M — mute      R — restart', FIELD.width / 2, FIELD.height - 13);
+    ctx.restore();
+  }
+
+  function drawBossBar(state) {
+    const boss = state.boss;
+    if (!boss || !boss.active) return;
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ff2e63';
+    ctx.font = '800 15px system-ui, sans-serif';
+    ctx.fillText('BOSS — THE GLOOMWHALE', FIELD.width / 2, 74);
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.fillRect(FIELD.width / 2 - 210, 82, 420, 12);
+    ctx.fillStyle = '#ff2e63';
+    ctx.fillRect(FIELD.width / 2 - 210, 82, 420 * (boss.hp / boss.maxHp), 12);
+    ctx.fillStyle = PALETTE.hud;
+    ctx.font = '700 12px system-ui, sans-serif';
+    ctx.fillText(`${boss.hp} / ${boss.maxHp}`, FIELD.width / 2, 104);
+    ctx.restore();
+  }
+
+  function drawBoss(state) {
+    const boss = state.boss;
+    if (!boss || !boss.active) return;
+    ctx.save();
+    ctx.translate(boss.x, boss.y);
+    ctx.rotate(boss.angle);
+    const flash = boss.flash > 0;
+    // A huge dark whale: body, belly, tail, fins and one burning eye.
+    ctx.fillStyle = flash ? '#5c1a3a' : PALETTE.boss;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 66, 38, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = PALETTE.bossBelly;
+    ctx.beginPath();
+    ctx.ellipse(6, 16, 44, 16, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = flash ? '#5c1a3a' : PALETTE.boss;
+    ctx.beginPath();
+    ctx.moveTo(-58, 0);
+    ctx.lineTo(-92, -26);
+    ctx.lineTo(-92, 26);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(-10, -34);
+    ctx.lineTo(8, -58);
+    ctx.lineTo(22, -30);
+    ctx.closePath();
+    ctx.fill();
+    // Maw: a dark gape ringed with teeth.
+    ctx.fillStyle = '#12060f';
+    ctx.beginPath();
+    ctx.ellipse(52, 6, 16, 10, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#e8fbff';
+    for (let i = 0; i < 5; i += 1) {
+      ctx.beginPath();
+      ctx.moveTo(40 + i * 6, -2);
+      ctx.lineTo(43 + i * 6, 4);
+      ctx.lineTo(46 + i * 6, -2);
+      ctx.closePath();
+      ctx.fill();
+    }
+    // The eye burns, and burns brighter while it telegraphs a charge.
+    ctx.shadowColor = PALETTE.bossEye;
+    ctx.shadowBlur = boss.mode === 'telegraph' ? 30 : 16;
+    circle(34, -12, boss.mode === 'telegraph' ? 8 : 6, PALETTE.bossEye);
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+
+  function drawGiftChoice(state) {
+    const choice = state.giftChoice;
+    if (!choice) return;
+    ctx.save();
+    dimOverlay(0.68);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#fff3c4';
+    ctx.font = '800 40px system-ui, sans-serif';
+    ctx.shadowColor = '#ffd76a';
+    ctx.shadowBlur = 24;
+    ctx.fillText('The beacon’s light offers a gift', FIELD.width / 2, 200);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = PALETTE.hud;
+    ctx.font = '600 19px system-ui, sans-serif';
+    ctx.fillText('Choose one — press 1, 2 or 3, or click a card.', FIELD.width / 2, 238);
+    choice.options.forEach((id, index) => {
+      const gift = giftById(id);
+      const card = GIFT_CARDS[index];
+      ctx.fillStyle = 'rgba(3, 14, 26, 0.92)';
+      ctx.strokeStyle = '#ffd76a';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(card.x, card.y, card.width, card.height, 16);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#ffd76a';
+      ctx.font = '800 15px system-ui, sans-serif';
+      ctx.fillText(`Press ${index + 1}`, card.x + card.width / 2, card.y + 30);
+      ctx.fillStyle = '#fff3c4';
+      ctx.font = '800 22px system-ui, sans-serif';
+      ctx.fillText(gift.name, card.x + card.width / 2, card.y + 74);
+      ctx.fillStyle = PALETTE.hud;
+      ctx.font = '600 15px system-ui, sans-serif';
+      ctx.fillText(gift.desc, card.x + card.width / 2, card.y + 108);
+      if (state.gifts.includes(id)) {
+        ctx.fillStyle = PALETTE.hudDim;
+        ctx.font = '600 13px system-ui, sans-serif';
+        ctx.fillText('Held — strengthens it', card.x + card.width / 2, card.y + 138);
+      }
+    });
     ctx.restore();
   }
 
@@ -444,6 +648,9 @@ export function createRenderer(canvas) {
     ctx.fillStyle = PALETTE.hud;
     ctx.font = '600 24px system-ui, sans-serif';
     ctx.fillText('A lanternfish lights the abyss, one glimmer at a time.', FIELD.width / 2, 256);
+    ctx.fillStyle = '#ffd76a';
+    ctx.font = '700 19px system-ui, sans-serif';
+    ctx.fillText('6 descents · the Gloomwhale boss · 8 abyssal gifts', FIELD.width / 2, 288);
     panel(FIELD.width / 2 - 330, 300, 660, 190);
     ctx.fillStyle = PALETTE.hud;
     ctx.font = '600 19px system-ui, sans-serif';
@@ -484,6 +691,11 @@ export function createRenderer(canvas) {
     ctx.fillStyle = PALETTE.hud;
     ctx.font = '600 22px system-ui, sans-serif';
     ctx.fillText(`Score ${state.score}  ·  Best ${Math.max(best, state.score)}  ·  Descent ${state.wave + 1} of 6`, FIELD.width / 2, 336);
+    if (state.gifts.length > 0) {
+      ctx.fillStyle = '#ffd76a';
+      ctx.font = '600 18px system-ui, sans-serif';
+      ctx.fillText(`Gifts: ${state.gifts.map((id) => giftById(id).name).join(' · ')}`, FIELD.width / 2, 372);
+    }
     ctx.fillStyle = PALETTE.banner;
     ctx.font = '800 26px system-ui, sans-serif';
     ctx.fillText('Press R or Space to dive again', FIELD.width / 2, 420);
@@ -504,9 +716,18 @@ export function createRenderer(canvas) {
     ctx.font = '600 22px system-ui, sans-serif';
     ctx.fillText('Six beacons burn at 1,050 metres. Luma swims home in the light.', FIELD.width / 2, 330);
     ctx.fillText(`Score ${state.score}  ·  Best ${Math.max(best, state.score)}`, FIELD.width / 2, 372);
+    const minutes = Math.floor(state.elapsed / 60);
+    const seconds = String(Math.floor(state.elapsed % 60)).padStart(2, '0');
+    ctx.fillStyle = PALETTE.hudDim;
+    ctx.font = '600 18px system-ui, sans-serif';
+    ctx.fillText(`Time ${minutes}:${seconds}  ·  Pulses ${state.pulses}  ·  Shadows driven ${state.shadesDriven}  ·  Boss hits ${state.bossHits}`, FIELD.width / 2, 406);
+    if (state.gifts.length > 0) {
+      ctx.fillStyle = '#ffd76a';
+      ctx.fillText(`Gifts: ${state.gifts.map((id) => giftById(id).name).join(' · ')}`, FIELD.width / 2, 436);
+    }
     ctx.fillStyle = PALETTE.banner;
     ctx.font = '800 26px system-ui, sans-serif';
-    ctx.fillText('Press R or Space to play again', FIELD.width / 2, 448);
+    ctx.fillText('Press R or Space to play again', FIELD.width / 2, 492);
     ctx.restore();
   }
 
@@ -519,6 +740,7 @@ export function createRenderer(canvas) {
     drawGlimmers(state);
     drawPowerups(state);
     drawShades(state);
+    drawBoss(state);
     drawPlayer(state);
     drawParticles(state);
     // The deep gets darker as you descend; the fish's light is what you see by.
@@ -528,8 +750,14 @@ export function createRenderer(canvas) {
       ctx.fillRect(0, 0, FIELD.width, FIELD.height);
     }
     drawHud(state, best, muted);
-    // The win and game-over screens speak for themselves; no banner over them.
-    if (screen !== SCREEN_WIN && screen !== SCREEN_OVER) drawBanner(state);
+    if (screen === SCREEN_PLAY || screen === SCREEN_PAUSED) {
+      drawSidePanels(state);
+      drawBossBar(state);
+    }
+    drawGiftChoice(state);
+    // The win and game-over screens speak for themselves; no banner over them,
+    // and none over a gift choice either — the cards are the message.
+    if (screen !== SCREEN_WIN && screen !== SCREEN_OVER && !state.giftChoice) drawBanner(state);
     if (screen === SCREEN_TITLE) drawTitle(state, best);
     else if (screen === SCREEN_PAUSED) drawPaused();
     else if (screen === SCREEN_OVER) drawOver(state, best);
