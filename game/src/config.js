@@ -21,7 +21,7 @@ export const PLAYER = {
   invulnerableSeconds: 1.6,
 };
 
-export const GLIMMER = { radius: 11, basePoints: 100, magnetRadius: 110, comboWindow: 3.0 };
+export const GLIMMER = { radius: 11, basePoints: 1000, magnetRadius: 110, comboWindow: 3.0 };
 
 // The Gloomwhale, the boss of the sixth descent: a huge shadow that hunts
 // the fish, charges with a telegraphed dash, and calls shades to it. Light
@@ -37,7 +37,7 @@ export const BOSS = {
   chargeCooldown: 4.5,
   shadeCallGap: 7,
   touchDamage: 1,
-  fleeScore: 5000,
+  fleeScore: 50000,
 };
 
 // The Ink Mother, the mini-boss of the third descent: a long ink eel,
@@ -54,7 +54,24 @@ export const BOSS_MINI = {
   chargeCooldown: 3.5,
   shadeCallGap: 6,
   touchDamage: 1,
-  fleeScore: 2500,
+  fleeScore: 25000,
+};
+
+// The Tide Warden, the mini-boss of the fifth descent: a spiked teal
+// guardian, quicker than the eel, that calls darts. Five pulse hits send
+// it fleeing — and leave a relic behind.
+export const BOSS_MINI2 = {
+  name: 'The Tide Warden',
+  kind: 'warden',
+  radius: 34,
+  maxHp: 5,
+  cruiseSpeed: 88,
+  chargeSpeed: 320,
+  chargeTelegraph: 0.7,
+  chargeCooldown: 3.0,
+  shadeCallGap: 5,
+  touchDamage: 1,
+  fleeScore: 20000,
 };
 
 export const GIFT_CHOICE_COUNT = 3;
@@ -95,6 +112,9 @@ export const PALETTE = {
   eel: '#4a1a5e',
   eelBelly: '#7a3d9f',
   eelEye: '#c9a7ff',
+  warden: '#0f3a3a',
+  wardenBelly: '#1f6a6a',
+  wardenEye: '#5ef2d6',
   gift: '#ffd76a',
   panel: 'rgba(3, 14, 26, 0.78)',
   panelEdge: 'rgba(127, 227, 255, 0.35)',

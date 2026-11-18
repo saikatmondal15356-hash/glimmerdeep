@@ -8,8 +8,9 @@ A lanternfish lights the abyss, one glimmer at a time. **Glimmerdeep** is a
 complete arcade game that runs in a desktop browser from static files, with
 no network request: swim Luma the lanternfish through six ever-deeper,
 ever-darker descents, gather the glimmers that light each beacon, choose an
-abyssal gift after every beacon, drive off two bosses — the Ink Mother of
-the third descent and the Gloomwhale of the sixth — and win the relics they
+abyssal gift after every beacon, drive off three bosses — the Ink Mother of
+the third descent, the Tide Warden of the fifth and the Gloomwhale of the
+sixth — and win the relics they
 leave behind, before the abyss is lit.
 
 ## Run it
@@ -34,25 +35,29 @@ choice, and you dive deeper. Light all six beacons at 1,050 metres to win.
 
 **The bosses:** the Ink Mother haunts the third descent — a long ink eel,
 quicker than the whale, that calls darts instead of shades. Six pulse hits
-send it fleeing for +2,500 points and the Ink Vial relic. The Gloomwhale
-rules the sixth descent: it cruises at you, telegraphs a charge, dashes,
-and calls gloomshades to it. Twelve hits send it fleeing for +5,000 points
-and the Whalebone Charm relic. Light pulses cost each boss one hull.
+send it fleeing for +25,000 points and the Ink Vial relic. The Tide Warden
+guards the fifth descent — a spiked teal guardian that calls darts. Five
+pulse hits send it fleeing for +20,000 points and the Tideheart relic. The
+Gloomwhale rules the sixth descent: it cruises at you, telegraphs a charge,
+dashes, and calls gloomshades to it. Twelve hits send it fleeing for
++50,000 points and the Whalebone Charm relic. Light pulses cost each boss
+one hull.
 
 **Relics:** one per boss, kept for the whole run and shown in the side
 panel. The Whalebone Charm makes pulses cost 5 less light; the Ink Vial
-pulls glimmers from 50% further away.
+pulls glimmers from 50% further away; the Tideheart grants +1 max hull.
 
 **Abyssal gifts:** after each beacon (except the last) you choose one of
 three — Swift Fins, Wide Glow, Deep Lung, Thick Scales, Magnet Lure, Sharp
-Light, Lucky Current, Steady Heart, Bright Wake, Coral Guard, Deep Pockets
-or Echo Lure. Gifts stack across the run and show in the side panel; the
+Light, Lucky Current, Steady Heart, Bright Wake, Coral Guard, Deep Pockets,
+Echo Lure, Wide Net, Long Echo, Efficient Pulse or Magnet Bloom. Gifts stack
+across the run and show in the side panel; the
 win screen lists the ones you held.
 
 **Lose:** the gloomshades, darts and urchins hunt in the dark. Three hull
 hits and the dark takes Luma.
 
-**Score:** glimmers are worth 100 points times your combo multiplier, which
+**Score:** glimmers are worth 1,000 points times your combo multiplier, which
 grows as you gather without a break. Wave-clear bonuses, pulse takedowns,
 boss takedowns and power-ups — hearts, shields and Surge (double points) —
 add more.
@@ -65,9 +70,9 @@ add more.
 - `game/src/audio.js` — every sound synthesized live with WebAudio
 - `game/src/input.js` — keyboard and mouse, read once per frame
 - `game/src/world.js` — the simulation: fish, glimmers, shadows, waves, scoring, gift choices, the boss fights, relics
-- `game/src/gifts.js` — the twelve abyssal gifts: names, effects, and how they stack
-- `game/src/relics.js` — the two relics: which boss leaves each one behind
-- `game/src/boss.js` — the two bosses: cruise, telegraphed charge, shade calls, pulse hits
+- `game/src/gifts.js` — the sixteen abyssal gifts: names, effects, and how they stack
+- `game/src/relics.js` — the three relics: which boss leaves each one behind
+- `game/src/boss.js` — the three bosses: cruise, telegraphed charge, shade calls, pulse hits
 - `game/src/render.js` — everything painted on the canvas: side panels, boss bar, gift cards, title, win and game-over screens
 - `game/src/shots.js` — the deterministic screenshot scenes (`?shot=start|play|deep|win`)
 - `game/src/main.js` — boot and the one game loop

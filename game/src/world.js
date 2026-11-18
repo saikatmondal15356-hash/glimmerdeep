@@ -2,7 +2,7 @@
 // the shadows that hunt it, and the six descents down to the lit abyss.
 // One file, one job: it owns every rule and no drawing at all.
 
-import { BOSS_MINI, DESCENTS, FIELD, GIFT_CHOICE_COUNT, GLIMMER, PLAYER, STEP } from './config.js';
+import { BOSS_MINI, BOSS_MINI2, DESCENTS, FIELD, GIFT_CHOICE_COUNT, GLIMMER, PLAYER, STEP } from './config.js';
 import { range, rangeInt, pick } from './random.js';
 import { CACHE_GIFT, GIFTS, freshMods, giftById } from './gifts.js';
 import { relicForBossKind } from './relics.js';
@@ -50,8 +50,8 @@ export function createWorld(random) {
     mods: freshMods(),
     // Relics: trophies won by driving a boss off, one per boss.
     relics: [],
-    // The bosses: the Ink Mother of the third descent, the Gloomwhale of
-    // the sixth; null until one surfaces.
+    // The bosses: the Ink Mother of the third descent, the Tide Warden
+    // of the fifth, the Gloomwhale of the sixth; null until one surfaces.
     boss: null,
     // A big centre callout for the moments that deserve one: a combo
     // milestone, a boss fleeing.
@@ -252,7 +252,7 @@ export function createWorld(random) {
     powerup.active = false;
     if (powerup.kind === 'heart') {
       if (state.hull < state.mods.maxHull) state.hull += 1;
-      else state.score += 500;
+      else state.score += 5000;
       addFloat(state.player.x, state.player.y - 26, '+1 hull', '#ff6b81');
     } else if (powerup.kind === 'shield') {
       state.shieldTimer = 8;
@@ -303,9 +303,9 @@ export function createWorld(random) {
       if (distance < radius + shade.r) {
         if (shade.kind === KIND_DART || state.mods.sharp) {
           shade.active = false;
-          state.score += shade.kind === KIND_DART ? 50 : 100;
+          state.score += shade.kind === KIND_DART ? 500 : 1000;
           state.shadesDriven += 1;
-          addFloat(shade.x, shade.y - 14, shade.kind === KIND_DART ? '+50' : '+100', '#c9a7ff');
+          addFloat(shade.x, shade.y - 14, shade.kind === KIND_DART ? '+500' : '+1,000', '#c9a7ff');
           burst(shade.x, shade.y, '#b46bff', 10, 150);
         } else {
           const push = 320 / Math.max(distance, 20);
@@ -388,14 +388,18 @@ export function createWorld(random) {
     for (let i = 0; i < table.urchins; i += 1) spawnShade(KIND_URCHIN);
     if (state.mods.steadyHeart && state.hull < state.mods.maxHull) state.hull += 1;
     if (state.mods.coralGuard) state.shieldTimer = 6;
-    // The Ink Mother only haunts the third descent: when the beacon lights
-    // there, it flees with the dark instead of following the fish deeper.
-    if (state.boss && state.boss.cfg.kind === 'eel') state.boss = null;
-    const bonus = 1000 * (state.wave + 1) + (state.mods.deepPockets ? 1000 : 0);
+    // The Ink Mother only haunts the third descent, the Tide Warden only
+    // the fifth: when the beacon lights there, each flees with the dark
+    // instead of following the fish deeper.
+    if (state.boss && (state.boss.cfg.kind === 'eel' || state.boss.cfg.kind === 'warden')) state.boss = null;
+    const bonus = 10000 * (state.wave + 1) + (state.mods.deepPockets ? 10000 : 0);
     state.score += bonus;
     if (state.wave >= DESCENTS.length - 1) {
       state.boss = createBoss(random, state.player);
       showBanner('Descent 6 — 1,050m', 'The Gloomwhale hunts here · Gather 18 glimmers');
+    } else if (state.wave === 4) {
+      state.boss = createBoss(random, state.player, BOSS_MINI2);
+      showBanner('Descent 5 — 820m', 'The Tide Warden hunts here · Gather 16 glimmers');
     } else if (state.wave === 2) {
       state.boss = createBoss(random, state.player, BOSS_MINI);
       showBanner('Descent 3 — 430m', 'The Ink Mother hunts here · Gather 12 glimmers');
@@ -576,23 +580,24 @@ export function createWorld(random) {
       }
     }
 
-    // A boss hunts in the third and sixth descents: cruise, telegraph,
-    // charge. The whale calls shades; the Ink Mother calls darts.
+    // A boss hunts in the third, fifth and sixth descents: cruise,
+    // telegraph, charge. The whale calls shades; the Ink Mother and the
+    // Tide Warden call darts.
     const boss = state.boss;
     if (boss && boss.active) {
       const bossEvent = stepBoss(boss, dt, player, random);
       if (bossEvent === 'warn') {
         addFloat(boss.x, boss.y - 84, `${boss.cfg.name} charges!`, '#ff2e63');
       } else if (bossEvent === 'call') {
-        const isEel = boss.cfg.kind === 'eel';
+        const callsDarts = boss.cfg.kind === 'eel' || boss.cfg.kind === 'warden';
         state.shades.push({
           x: boss.x + range(random, -90, 90),
           y: boss.y + range(random, -60, 60),
-          vx: 0, vy: 0, r: isEel ? 13 : 15,
-          speed: descent().shadeSpeed * (isEel ? 1.9 : 1),
+          vx: 0, vy: 0, r: callsDarts ? 13 : 15,
+          speed: descent().shadeSpeed * (callsDarts ? 1.9 : 1),
           wobble: range(random, 0.8, 2.2),
           phase: random.next() * Math.PI * 2,
-          kind: isEel ? KIND_DART : KIND_SHADE,
+          kind: callsDarts ? KIND_DART : KIND_SHADE,
           active: true,
         });
       }

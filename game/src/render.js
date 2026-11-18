@@ -434,9 +434,9 @@ export function createRenderer(canvas) {
       ctx.fill();
       ctx.fillStyle = current ? PALETTE.hud : PALETTE.hudDim;
       ctx.font = current ? '700 13px system-ui, sans-serif' : '600 13px system-ui, sans-serif';
-      // The boss descents are marked: the Ink Mother at 430m, the
-      // Gloomwhale at 1,050m.
-      const label = (index === 2 || index === 5)
+      // The boss descents are marked: the Ink Mother at 430m, the Tide
+      // Warden at 820m, the Gloomwhale at 1,050m.
+      const label = (index === 2 || index === 4 || index === 5)
         ? `${index + 1}  ${descent.depth}m — ${descent.quota} · BOSS`
         : `${index + 1}  ${descent.depth}m — ${descent.quota} glimmers`;
       ctx.fillText(label, 46, y);
@@ -461,7 +461,7 @@ export function createRenderer(canvas) {
     ctx.textAlign = 'left';
     ctx.fillStyle = PALETTE.hud;
     ctx.font = '800 13px system-ui, sans-serif';
-    ctx.fillText(`GIFTS  ${state.gifts.length}/12`, FIELD.width - 206, 88);
+    ctx.fillText(`GIFTS  ${state.gifts.length}/16`, FIELD.width - 206, 88);
     if (state.gifts.length === 0) {
       ctx.fillStyle = PALETTE.hudDim;
       ctx.font = '600 12px system-ui, sans-serif';
@@ -481,7 +481,7 @@ export function createRenderer(canvas) {
     }
     ctx.fillStyle = PALETTE.hud;
     ctx.font = '800 13px system-ui, sans-serif';
-    ctx.fillText(`RELICS  ${state.relics.length}/2`, FIELD.width - 206, 222);
+    ctx.fillText(`RELICS  ${state.relics.length}/3`, FIELD.width - 206, 222);
     if (state.relics.length === 0) {
       ctx.fillStyle = PALETTE.hudDim;
       ctx.font = '600 12px system-ui, sans-serif';
@@ -530,13 +530,13 @@ export function createRenderer(canvas) {
   function drawBossBar(state) {
     const boss = state.boss;
     if (!boss || !boss.active) return;
-    const isEel = boss.cfg.kind === 'eel';
-    const color = isEel ? PALETTE.eelEye : '#ff2e63';
+    const isMini = boss.cfg.kind === 'eel' || boss.cfg.kind === 'warden';
+    const color = boss.cfg.kind === 'eel' ? PALETTE.eelEye : boss.cfg.kind === 'warden' ? PALETTE.wardenEye : '#ff2e63';
     ctx.save();
     ctx.textAlign = 'center';
     ctx.fillStyle = color;
     ctx.font = '800 15px system-ui, sans-serif';
-    ctx.fillText(`${isEel ? 'MINI-BOSS' : 'BOSS'} — ${boss.cfg.name.toUpperCase()}`, FIELD.width / 2, 74);
+    ctx.fillText(`${isMini ? 'MINI-BOSS' : 'BOSS'} — ${boss.cfg.name.toUpperCase()}`, FIELD.width / 2, 74);
     ctx.fillStyle = 'rgba(255,255,255,0.15)';
     ctx.fillRect(FIELD.width / 2 - 210, 82, 420, 12);
     ctx.fillStyle = color;
@@ -587,6 +587,39 @@ export function createRenderer(canvas) {
       ctx.shadowColor = PALETTE.eelEye;
       ctx.shadowBlur = boss.mode === 'telegraph' ? 26 : 14;
       circle(12, -6, boss.mode === 'telegraph' ? 7 : 5, PALETTE.eelEye);
+      ctx.shadowBlur = 0;
+      ctx.restore();
+      return;
+    }
+    if (boss.cfg.kind === 'warden') {
+      // The Tide Warden: a spiked teal guardian orb with a glowing lure
+      // above one bright eye.
+      ctx.fillStyle = flash ? '#1a3a3a' : PALETTE.warden;
+      for (let i = 0; i < 8; i += 1) {
+        const a = (i / 8) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(a) * 24, Math.sin(a) * 24);
+        ctx.lineTo(Math.cos(a + 0.22) * 30, Math.sin(a + 0.22) * 30);
+        ctx.lineTo(Math.cos(a) * 42, Math.sin(a) * 42);
+        ctx.closePath();
+        ctx.fill();
+      }
+      circle(0, 0, 30, flash ? '#1a3a3a' : PALETTE.warden);
+      ctx.fillStyle = PALETTE.wardenBelly;
+      ctx.beginPath();
+      ctx.ellipse(0, 12, 19, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = PALETTE.warden;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(0, -28);
+      ctx.quadraticCurveTo(10, -44, 22, -46);
+      ctx.stroke();
+      ctx.shadowColor = PALETTE.wardenEye;
+      ctx.shadowBlur = 18;
+      circle(24, -47, 6, PALETTE.wardenEye);
+      ctx.shadowBlur = boss.mode === 'telegraph' ? 26 : 14;
+      circle(10, -8, boss.mode === 'telegraph' ? 7 : 5, PALETTE.wardenEye);
       ctx.shadowBlur = 0;
       ctx.restore();
       return;
@@ -740,7 +773,7 @@ export function createRenderer(canvas) {
     ctx.fillText('A lanternfish lights the abyss, one glimmer at a time.', FIELD.width / 2, 256);
     ctx.fillStyle = '#ffd76a';
     ctx.font = '700 19px system-ui, sans-serif';
-    ctx.fillText('6 descents · 2 bosses · 12 abyssal gifts · 2 relics', FIELD.width / 2, 288);
+    ctx.fillText('6 descents · 3 bosses · 16 abyssal gifts · 3 relics', FIELD.width / 2, 288);
     panel(FIELD.width / 2 - 330, 300, 660, 190);
     ctx.fillStyle = PALETTE.hud;
     ctx.font = '600 19px system-ui, sans-serif';

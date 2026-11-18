@@ -1,5 +1,5 @@
 // Glimmerdeep — the abyssal gifts: one offered after each beacon lights.
-// One file, one job: it names the twelve gifts, says what each does, and
+// One file, one job: it names the sixteen gifts, says what each does, and
 // applies the one the player picks. The world owns when a choice opens.
 
 export const GIFTS = [
@@ -45,8 +45,8 @@ export const GIFTS = [
   {
     id: 'lucky-current',
     name: 'Lucky Current',
-    desc: 'Every glimmer is worth +50 points',
-    apply(mods) { mods.bonusPoints += 50; },
+    desc: 'Every glimmer is worth +500 points',
+    apply(mods) { mods.bonusPoints += 500; },
   },
   {
     id: 'steady-heart',
@@ -69,7 +69,7 @@ export const GIFTS = [
   {
     id: 'deep-pockets',
     name: 'Deep Pockets',
-    desc: '+1,000 points at every beacon',
+    desc: '+10,000 points at every beacon',
     apply(mods) { mods.deepPockets = true; },
   },
   {
@@ -78,14 +78,38 @@ export const GIFTS = [
     desc: 'Combo lasts 1.5s longer',
     apply(mods) { mods.comboWindow += 1.5; },
   },
+  {
+    id: 'wide-net',
+    name: 'Wide Net',
+    desc: 'Pulses gather glimmers wider still',
+    apply(mods) { mods.gatherRadius += 0.3; },
+  },
+  {
+    id: 'long-echo',
+    name: 'Long Echo',
+    desc: 'Combo lasts 1s longer',
+    apply(mods) { mods.comboWindow += 1.0; },
+  },
+  {
+    id: 'efficient-pulse',
+    name: 'Efficient Pulse',
+    desc: 'Pulses cost 3 less light',
+    apply(mods) { mods.pulseCostCut += 3; },
+  },
+  {
+    id: 'magnet-bloom',
+    name: 'Magnet Bloom',
+    desc: '+25% glimmer pull range',
+    apply(mods) { mods.extraMagnet *= 1.25; },
+  },
 ];
 
 /** The gift that fills a choice when every gift is already held. */
 export const CACHE_GIFT = {
   id: 'deep-cache',
   name: 'Deep Cache',
-  desc: '+1,500 points, found in the dark',
-  apply(mods, state) { state.score += 1500; },
+  desc: '+15,000 points, found in the dark',
+  apply(mods, state) { state.score += 15000; },
 };
 
 export function freshMods() {

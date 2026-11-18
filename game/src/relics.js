@@ -1,5 +1,5 @@
 // Glimmerdeep — the relics: rare trophies won by driving a boss off.
-// One file, one job: it names the two relics, says which boss leaves each
+// One file, one job: it names the three relics, says which boss leaves each
 // one behind, and applies the one the player wins. The world owns when a
 // boss flees; the side panel shows the relics held.
 
@@ -17,6 +17,13 @@ export const RELICS = [
     desc: '+50% glimmer pull range',
     bossKind: 'eel',
     apply(mods) { mods.extraMagnet = 1.5; },
+  },
+  {
+    id: 'tideheart',
+    name: 'Tideheart',
+    desc: '+1 max hull',
+    bossKind: 'warden',
+    apply(mods) { mods.maxHull += 1; },
   },
 ];
 
